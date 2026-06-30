@@ -1,88 +1,117 @@
+## Điều khiển logic chính của game Flappy Bird.
+## Quản lý vòng đời game: khởi tạo, cuộn nền, sinh ống nước, tính điểm và kết thúc.
 extends Node
 
-# Scene chứa chướng ngại vật (ống nước)
-@export var pipe_scene : PackedScene
+# --- Thuộc tính export ---
+## Scene ống nước, gán từ Inspector trong editor.
+@export var pipe_scene: PackedScene
 
-# Hằng số điều chỉnh tốc độ và khoảng cách
-const SCROLL_SPEED : int = 4
-const PIPE_DELAY : int = 100
-const PIPE_RANGE : int = 200
+# --- Hằng số ---
+## Tốc độ cuộn nền và di chuyển ống (pixel/frame).
+const SCROLL_SPEED: int = 4
+## Khoảng cách thêm khi sinh ống nước so với mép phải màn hình (pixel).
+const PIPE_DELAY: int = 100
+## Biên dao động ngẫu nhiên theo trục Y khi sinh ống nước (pixel).
+const PIPE_RANGE: int = 200
 
-# Trạng thái trò chơi và các thông số
-var game_running : bool
-var game_over : bool
-var screen_size : Vector2i
-var ground_height : int
-var pipes : Array = []
-var scroll : int = 0
-var score : int = 0
+# --- Tham chiếu node ---
+## Tham chiếu đến node chim.
+@onready var bird: CharacterBody2D = $Bird
+## Tham chiếu đến node mặt đất.
+@onready var ground: Area2D = $Ground
+## Tham chiếu đến label hiển thị điểm số.
+@onready var score_label: Label = $ScoreLabel
+## Tham chiếu đến màn hình Game Over.
+@onready var game_over_screen: CanvasLayer = $GameOver
+## Tham chiếu đến Timer sinh ống nước.
+@onready var pipe_timer: Timer = $PipeTimer
 
-# Hàm khởi tạo: được gọi lần đầu tiên khi node được thêm vào scene tree
-func _ready():
+# --- Biến trạng thái ---
+## Cờ game đang chạy (chim đang bay, ống đang di chuyển).
+var game_running: bool
+## Cờ game đã kết thúc (chim va chạm).
+var game_over: bool
+## Kích thước viewport, dùng để tính vị trí sinh ống.
+var screen_size: Vector2i
+## Chiều cao texture mặt đất, dùng để tính toạ độ Y ống nước.
+var ground_height: int
+## Mảng chứa các ống nước đang hiển thị trên màn hình.
+var pipes: Array = []
+## Giá trị cuộn mặt đất hiện tại (pixel).
+var scroll: int = 0
+## Điểm số hiện tại.
+var score: int = 0
+
+## Khởi tạo: lấy kích thước màn hình, chiều cao mặt đất và bắt đầu ván mới.
+func _ready() -> void:
 	screen_size = get_tree().root.content_scale_size
-	ground_height = $Ground.get_node("Sprite2D").texture.get_height()
+	ground_height = ground.get_node("Sprite2D").texture.get_height()
 	new_game()
 
-# Hàm bắt sự kiện người dùng (chuột, phím)
-func _input(event):
-	# Bắt đầu hoặc tiếp tục trò chơi khi nhấn chuột trái
-	if not game_over and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		if not game_running:
-			game_running = true
-			$Bird.flying = true
-			$Bird.flap()
-			$PipeTimer.start()
-		else:
-			if $Bird.flying:
-				$Bird.flap()
-				# Dừng game nếu chim bay vượt khỏi mép trên của màn hình
-				if $Bird.position.y < 0:
-					$Bird.falling = true
-					stop_game()
+## Xử lý input: click chuột trái để bắt đầu game hoặc vỗ cánh.
+func _input(event: InputEvent) -> void:
+	if game_over:
+		return
+	# Chỉ phản hồi click chuột trái
+	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
+		return
+	if not game_running:
+		# Lần click đầu tiên: bắt đầu game
+		game_running = true
+		bird.flying = true
+		bird.flap()
+		pipe_timer.start()
+	else:
+		if bird.flying:
+			bird.flap()
+			# Nếu chim bay vượt mép trên màn hình thì kết thúc
+			if bird.position.y < 0:
+				bird.falling = true
+				stop_game()
 
-# Hàm chạy mỗi frame: cập nhật vị trí màn hình và chướng ngại vật
-func _process(_delta):
-	if game_running:
-		# Cuộn nền mặt đất
-		scroll += SCROLL_SPEED
-		if scroll >= screen_size.x:
-			scroll = 0
-		$Ground.position.x = -scroll
-		
-		# Di chuyển các ống nước sang trái
-		for pipe in pipes:
-			pipe.position.x -= SCROLL_SPEED
+## Mỗi frame: cuộn mặt đất và di chuyển các ống nước sang trái.
+func _process(_delta: float) -> void:
+	if not game_running:
+		return
+	# Cuộn nền mặt đất
+	scroll += SCROLL_SPEED
+	if scroll >= screen_size.x:
+		scroll = 0
+	ground.position.x = -scroll
+	# Di chuyển tất cả ống nước sang trái
+	for pipe in pipes:
+		pipe.position.x -= SCROLL_SPEED
 
-# Sự kiện khi Timer tạo ống kết thúc
-func _on_pipe_timer_timeout():
+## Callback Timer: sinh ống nước mới theo chu kỳ.
+func _on_pipe_timer_timeout() -> void:
 	generate_pipes()
 
-# Sự kiện khi chim chạm đất
-func _on_ground_hit():
-	$Bird.falling = false
+## Callback khi chim chạm đất: dừng trạng thái rơi và kết thúc game.
+func _on_ground_hit() -> void:
+	bird.falling = false
 	stop_game()
 
-# Sự kiện nhấn nút khởi động lại trò chơi
-func _on_game_over_restart():
+## Callback nút Restart trên màn hình Game Over: bắt đầu ván mới.
+func _on_game_over_restart() -> void:
 	new_game()
 
-# Hàm làm mới trạng thái để chơi ván mới
-func new_game():
+## Khởi tạo ván mới: reset trạng thái, xoá ống cũ, sinh ống đầu tiên.
+func new_game() -> void:
 	game_running = false
 	game_over = false
 	score = 0
 	scroll = 0
-	$ScoreLabel.text = "SCORE: " + str(score)
-	$GameOver.hide()
-	# Xóa tất cả các ống nước cũ
+	score_label.text = "SCORE: " + str(score)
+	game_over_screen.hide()
+	# Xoá toàn bộ ống nước từ ván trước
 	get_tree().call_group("pipes", "queue_free")
 	pipes.clear()
 	generate_pipes()
-	$Bird.reset()
+	bird.reset()
 
-# Hàm tạo một cặp ống nước mới ở vị trí ngẫu nhiên
-func generate_pipes():
-	var pipe = pipe_scene.instantiate()
+## Sinh một cặp ống nước mới tại vị trí Y ngẫu nhiên.
+func generate_pipes() -> void:
+	var pipe := pipe_scene.instantiate()
 	pipe.position.x = screen_size.x + PIPE_DELAY
 	pipe.position.y = (screen_size.y - ground_height) / 2.0 + randi_range(-PIPE_RANGE, PIPE_RANGE)
 	pipe.hit.connect(bird_hit)
@@ -90,20 +119,20 @@ func generate_pipes():
 	add_child(pipe)
 	pipes.append(pipe)
 
-# Hàm dừng game khi người chơi thua
-func stop_game():
-	$PipeTimer.stop()
-	$GameOver.show()
-	$Bird.flying = false
+## Dừng game: tắt Timer, hiện màn hình Game Over, cập nhật trạng thái.
+func stop_game() -> void:
+	pipe_timer.stop()
+	game_over_screen.show()
+	bird.flying = false
 	game_running = false
 	game_over = true
 
-# Hàm xử lý khi chim va chạm ống nước
-func bird_hit():
-	$Bird.falling = true
+## Xử lý khi chim va chạm ống nước: chuyển sang trạng thái rơi và dừng game.
+func bird_hit() -> void:
+	bird.falling = true
 	stop_game()
-	
-# Hàm cộng điểm cho người chơi
-func scored():
+
+## Xử lý khi ghi điểm: tăng điểm và cập nhật label.
+func scored() -> void:
 	score += 1
-	$ScoreLabel.text = "SCORE: " + str(score)
+	score_label.text = "SCORE: " + str(score)

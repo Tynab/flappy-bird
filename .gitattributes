@@ -1,5 +1,21 @@
-# Normalize EOL for all files that Git considers text files.
+# Chuẩn hoá EOL cho tất cả file text.
 * text=auto eol=lf
-*.jpg filter=lfs diff=lfs merge=lfs -text
+
+# Godot scene và resource — xử lý như text.
+*.tscn text
+*.tres text
+*.godot text
+
+# GDScript — xử lý như text.
+*.gd text
+
+# Ảnh — quản lý bằng Git LFS.
 *.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+
+# File import Godot — quản lý bằng Git LFS.
 *.import filter=lfs diff=lfs merge=lfs -text
+
+# File build web — quản lý bằng Git LFS.
+*.pck filter=lfs diff=lfs merge=lfs -text
+*.wasm filter=lfs diff=lfs merge=lfs -text
