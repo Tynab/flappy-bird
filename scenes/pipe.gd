@@ -1,13 +1,18 @@
+## Quản lý ống nước (chướng ngại vật).
+## Phát tín hiệu va chạm (hit) khi chim chạm thân ống,
+## và tín hiệu ghi điểm (scored) khi chim bay qua khe giữa hai ống.
 extends Area2D
 
-# Các tín hiệu báo cáo trạng thái va chạm hoặc ghi điểm
+# --- Tín hiệu ---
+## Phát ra khi chim va chạm vào thân ống.
 signal hit
+## Phát ra khi chim bay qua vùng ghi điểm giữa hai ống.
 signal scored
 
-# Hàm được kích hoạt khi chim chạm vào thân ống
-func _on_body_entered(_body):
+## Xử lý va chạm thân ống: phát tín hiệu hit.
+func _on_body_entered(_body: Node2D) -> void:
 	hit.emit()
 
-# Hàm được kích hoạt khi chim bay qua vùng trống giữa hai ống (ghi điểm)
-func _on_score_area_body_entered(_body):
+## Xử lý khi chim bay qua vùng ghi điểm: phát tín hiệu scored.
+func _on_score_area_body_entered(_body: Node2D) -> void:
 	scored.emit()
