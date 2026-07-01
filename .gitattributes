@@ -9,13 +9,11 @@
 # GDScript — xử lý như text.
 *.gd text
 
-# Ảnh — quản lý bằng Git LFS.
-*.png filter=lfs diff=lfs merge=lfs -text
-*.jpg filter=lfs diff=lfs merge=lfs -text
+# File import Godot là text, giữ LF để tránh dirty repo sau khi clone.
+*.import text eol=lf
 
-# File import Godot — quản lý bằng Git LFS.
-*.import filter=lfs diff=lfs merge=lfs -text
-
-# File build web — quản lý bằng Git LFS.
-*.pck filter=lfs diff=lfs merge=lfs -text
-*.wasm filter=lfs diff=lfs merge=lfs -text
+# Asset nhị phân và output build: không chuẩn hoá EOL.
+*.png -text
+*.jpg -text
+*.pck -text
+*.wasm -text
